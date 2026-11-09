@@ -17,7 +17,7 @@ workflows:
         - 'step-security/harden-runner@v2.15.1'
     '.github/workflows/deploy-github-pages.yml':
         - 'actions/checkout@v6.0.2'
-        - 'actions/configure-pages@v5.0.0'
+        - 'actions/configure-pages@v6.0.0'
         - 'actions/deploy-pages@v5.0.0'
         - 'actions/upload-pages-artifact@v4.0.0'
     '.github/workflows/golangci-lint.yml':
@@ -47,9 +47,9 @@ dependencies:
         commit: 'sha1-de0fac2e4500dabe0009e67214ff5f5447ce83dd'
         owner_id: 44036562
         repo_id: 197814629
-    'actions/configure-pages@v5.0.0':
-        ref: 'v5.0.0'
-        commit: 'sha1-983d7736d9b0ae728b81ab479565c72886d7745b'
+    'actions/configure-pages@v6.0.0':
+        ref: 'v6.0.0'
+        commit: 'sha1-45bfe0192ca1faeb007ade9deae92b16b8254a0d'
         owner_id: 44036562
         repo_id: 513659658
     'actions/dependency-review-action@v4.8.0':
