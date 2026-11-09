@@ -6,15 +6,15 @@ workflows:
     '.github/workflows/build_test.yml':
         - 'actions/checkout@v6.0.2'
         - 'actions/setup-go@v6.4.0'
-        - 'step-security/harden-runner@v2.15.1'
+        - 'step-security/harden-runner@v2.22.4'
     '.github/workflows/codeql.yml':
         - 'actions/checkout@v6.0.2'
         - 'github/codeql-action@v4.31.2'
-        - 'step-security/harden-runner@v2.15.1'
+        - 'step-security/harden-runner@v2.22.4'
     '.github/workflows/dependency-review.yml':
         - 'actions/checkout@v6.0.2'
         - 'actions/dependency-review-action@v4.8.0'
-        - 'step-security/harden-runner@v2.15.1'
+        - 'step-security/harden-runner@v2.22.4'
     '.github/workflows/deploy-github-pages.yml':
         - 'actions/checkout@v6.0.2'
         - 'actions/configure-pages@v5.0.0'
@@ -28,19 +28,19 @@ workflows:
         - 'actions/checkout@v6.0.2'
         - 'boostsecurityio/poutine-action@main'
         - 'github/codeql-action@v4.31.2'
-        - 'step-security/harden-runner@v2.15.1'
+        - 'step-security/harden-runner@v2.22.4'
     '.github/workflows/release.yml':
         - 'actions/checkout@v6.0.2'
         - 'actions/setup-go@v6.4.0'
         - 'goreleaser/goreleaser-action@v7.0.0'
         - 'sigstore/cosign-installer@v4.1.1'
-        - 'step-security/harden-runner@v2.15.1'
+        - 'step-security/harden-runner@v2.22.4'
     '.github/workflows/scorecards.yml':
         - 'actions/checkout@v6.0.2'
         - 'actions/upload-artifact@v7.0.0'
         - 'github/codeql-action@v4.31.2'
         - 'ossf/scorecard-action@v2.4.3'
-        - 'step-security/harden-runner@v2.15.1'
+        - 'step-security/harden-runner@v2.22.4'
 dependencies:
     'actions/checkout@v6.0.2':
         ref: 'v6.0.2'
@@ -114,8 +114,8 @@ dependencies:
         commit: 'sha1-cad07c2e89fa2edd6e2d7bab4c1aa38e53f76003'
         owner_id: 71096353
         repo_id: 351211695
-    'step-security/harden-runner@v2.15.1':
-        ref: 'v2.15.1'
-        commit: 'sha1-58077d3c7e43986b6b15fba718e8ea69e387dfcc'
+    'step-security/harden-runner@v2.22.4':
+        ref: 'v2.22.4'
+        commit: 'sha1-1d88384fd173af6ecb012dfd0264a306b711241a'
         owner_id: 88700172
         repo_id: 422287306
