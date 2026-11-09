@@ -1,0 +1,684 @@
+package models
+
+import (
+	"encoding/json"
+	"fmt"
+	"strings"
+
+	"gopkg.in/yaml.v3"
+)
+
+const (
+	ScopeMetadata           = "metadata"
+	ScopeActions            = "actions"
+	ScopeAttestations       = "attestations"
+	ScopeChecks             = "checks"
+	ScopeContents           = "contents"
+	ScopeDeployments        = "deployments"
+	ScopeIDToken            = "id-token"
+	ScopeIssues             = "issues"
+	ScopeDiscussions        = "discussions"
+	ScopePackages           = "packages"
+	ScopePages              = "pages"
+	ScopePullRequests       = "pull-requests"
+	ScopeRepositoryProjects = "repository-projects"
+	ScopeSecurityEvents     = "security-events"
+	ScopeStatuses           = "statuses"
+
+	PermissionRead  = "read"
+	PermissionWrite = "write"
+	PermissionNone  = "none"
+)
+
+var AllScopes = []string{
+	ScopeMetadata,
+	ScopeActions,
+	ScopeAttestations,
+	ScopeChecks,
+	ScopeContents,
+	ScopeDeployments,
+	ScopeIDToken,
+	ScopeIssues,
+	ScopeDiscussions,
+	ScopePackages,
+	ScopePages,
+	ScopePullRequests,
+	ScopeRepositoryProjects,
+	ScopeSecurityEvents,
+	ScopeStatuses,
+}
+
+const AllSecrets = "*ALL"
+
+type GithubActionsInputs []GithubActionsInput
+type GithubActionsOutputs []GithubActionsOutput
+type GithubActionsEnvs []GithubActionsEnv
+type GithubActionsSteps []GithubActionsStep
+type GithubActionsPermissions []GithubActionsPermission
+type GithubActionsEvents []GithubActionsEvent
+type GithubActionsJobEnvironments []GithubActionsJobEnvironment
+type GithubActionsJobs []GithubActionsJob
+type GithubActionsJobSecrets []GithubActionsJobSecret
+type GithubActionsSecrets = GithubActionsInputs
+type GithubActionsWith = GithubActionsEnvs
+type GithubActionsJobRunsOn StringList
+type StringList []string
+
+// StringBool accepts both YAML booleans and quoted strings like "false".
+type StringBool bool
+
+func (b *StringBool) UnmarshalYAML(node *yaml.Node) error {
+	var boolVal bool
+	if err := node.Decode(&boolVal); err == nil {
+		*b = StringBool(boolVal)
+		return nil
+	}
+	var strVal string
+	if err := node.Decode(&strVal); err != nil {
+		return fmt.Errorf("error parsing string value for string bool: %s", node.Value)
+	}
+	*b = StringBool(strVal == "true")
+	return nil
+}
+
+type GithubActionsInput struct {
+	Name        string     `json:"name"`
+	Description string     `json:"description,omitempty"`
+	Required    StringBool `json:"required"`
+	Type        string     `json:"type"`
+}
+
+type GithubActionsOutput struct {
+	Name        string `json:"name"`
+	Description string `json:"description,omitempty"`
+	Value       string `json:"value"`
+}
+
+type GithubActionsEnv struct {
+	Name  string `json:"name"`
+	Value string `json:"value"`
+}
+
+type GithubActionsStep struct {
+	ID               string            `json:"id,omitempty"`
+	Name             string            `json:"name,omitempty"`
+	If               string            `json:"if,omitempty"`
+	Env              GithubActionsEnvs `json:"env,omitempty"`
+	Uses             string            `json:"uses,omitempty"`
+	Shell            string            `json:"shell,omitempty"`
+	Run              string            `json:"run,omitempty" yaml:"run"`
+	WorkingDirectory string            `json:"working_directory,omitempty" yaml:"working-directory"`
+	With             GithubActionsWith `json:"with,omitempty"`
+	WithRef          string            `json:"with_ref,omitempty" yaml:"-"`
+	WithScript       string            `json:"with_script,omitempty" yaml:"-"`
+	Line             int               `json:"line" yaml:"-"`
+	Action           string            `json:"action,omitempty" yaml:"-"`
+
+	// Set when the step comes from a flattened `parallel:` block (steps that
+	// run concurrently). No order index: parallel steps have no defined order.
+	Parallel bool `json:"parallel,omitempty" yaml:"-"`
+
+	Lines map[string]int `json:"lines" yaml:"-"`
+}
+
+type GithubActionsMetadata struct {
+	Path        string               `json:"path"`
+	Name        string               `json:"name" yaml:"name"`
+	Description string               `json:"description" yaml:"description"`
+	Author      string               `json:"author" yaml:"author"`
+	Inputs      GithubActionsInputs  `json:"inputs"`
+	Outputs     GithubActionsOutputs `json:"outputs"`
+	Runs        struct {
+		Using          string             `json:"using"`
+		Main           string             `json:"main"`
+		Pre            string             `json:"pre"`
+		PreIf          string             `json:"pre-if"`
+		Post           string             `json:"post"`
+		PostIf         string             `json:"post-if"`
+		Steps          GithubActionsSteps `json:"steps"`
+		Image          string             `json:"image"`
+		Entrypoint     string             `json:"entrypoint"`
+		PreEntrypoint  string             `json:"pre-entrypoint"`
+		PostEntrypoint string             `json:"post-entrypoint"`
+		Args           []string           `json:"args"`
+	} `json:"runs"`
+}
+
+type GithubActionsPermission struct {
+	Scope      string `json:"scope"`
+	Permission string `json:"permission"`
+}
+
+type GithubActionsEvent struct {
+	Name           string               `json:"name"`
+	Types          StringList           `json:"types,omitempty"`
+	Branches       StringList           `json:"branches,omitempty"`
+	BranchesIgnore StringList           `json:"branches_ignore,omitempty"`
+	Paths          StringList           `json:"paths,omitempty"`
+	PathsIgnore    StringList           `json:"paths_ignore,omitempty"`
+	Tags           StringList           `json:"tags,omitempty"`
+	TagsIgnore     StringList           `json:"tags_ignore,omitempty"`
+	Cron           StringList           `json:"cron,omitempty"`
+	Inputs         GithubActionsInputs  `json:"inputs,omitempty"`
+	Outputs        GithubActionsOutputs `json:"outputs,omitempty"`
+	Secrets        GithubActionsSecrets `json:"secrets,omitempty"`
+	Workflows      StringList           `json:"workflows,omitempty"`
+}
+
+type GithubActionsJobContainer struct {
+	Image string `json:"image"`
+}
+
+type GithubActionsJobEnvironment struct {
+	Name string `json:"name"`
+	Url  string `json:"url,omitempty"`
+}
+
+type GithubActionsJobSecret struct {
+	Name  string `json:"name"`
+	Value string `json:"value"`
+}
+
+type GithubActionsJob struct {
+	ID                string                       `json:"id"`
+	Name              string                       `json:"name,omitempty"`
+	Uses              string                       `json:"uses,omitempty"`
+	Secrets           GithubActionsJobSecrets      `json:"secrets,omitempty"`
+	With              GithubActionsWith            `json:"with,omitempty"`
+	Permissions       GithubActionsPermissions     `json:"permissions"`
+	Needs             StringList                   `json:"needs,omitempty"`
+	If                string                       `json:"if,omitempty"`
+	RunsOn            GithubActionsJobRunsOn       `json:"runs_on" yaml:"runs-on"`
+	Container         GithubActionsJobContainer    `json:"container"`
+	Environment       GithubActionsJobEnvironments `json:"environment,omitempty"`
+	Outputs           GithubActionsEnvs            `json:"outputs,omitempty"`
+	Env               GithubActionsEnvs            `json:"env,omitempty"`
+	Steps             GithubActionsSteps           `json:"steps"`
+	ReferencesSecrets []string                     `json:"references_secrets" yaml:"-"`
+	Strategy          GithubActionsStrategy        `json:"strategy,omitempty" yaml:"strategy"`
+	Line              int                          `json:"line" yaml:"-"`
+
+	Lines map[string]int `json:"lines" yaml:"-"`
+}
+
+type GithubActionsWorkflow struct {
+	Path        string                   `json:"path" yaml:"-"`
+	Name        string                   `json:"name"`
+	Events      GithubActionsEvents      `json:"events" yaml:"on"`
+	Permissions GithubActionsPermissions `json:"permissions"`
+	Env         GithubActionsEnvs        `json:"env,omitempty"`
+	Jobs        GithubActionsJobs        `json:"jobs"`
+}
+
+func (o GithubActionsWorkflow) IsValid() bool {
+	return len(o.Jobs) > 0 && len(o.Events) > 0
+}
+
+func (o GithubActionsMetadata) IsValid() bool {
+	return o.Runs.Using != ""
+}
+
+func (o *GithubActionsJobs) UnmarshalYAML(node *yaml.Node) error {
+	if node.Kind != yaml.MappingNode {
+		return nil
+	}
+
+	*o = make(GithubActionsJobs, 0, len(node.Content)/2)
+	for i := 0; i < len(node.Content); i += 2 {
+		name := node.Content[i].Value
+		value := node.Content[i+1]
+
+		job := GithubActionsJob{
+			ID:   name,
+			Line: node.Content[i].Line,
+			Lines: map[string]int{
+				"start": node.Content[i].Line,
+			},
+		}
+		err := value.Decode(&job)
+		if err != nil {
+			// Skip the offending job, keep the rest of the workflow.
+			continue
+		}
+
+		for j := 0; j < len(value.Content); j += 2 {
+			key := value.Content[j].Value
+			value := value.Content[j+1]
+
+			switch key {
+			case "runs-on":
+				job.Lines["runs_on"] = value.Line
+			case "if":
+				job.Lines[key] = value.Line
+			}
+		}
+
+		*o = append(*o, job)
+	}
+
+	return nil
+}
+
+func (o *GithubActionsJobSecrets) UnmarshalYAML(node *yaml.Node) error {
+	if node.Kind == yaml.ScalarNode && node.Value == "inherit" {
+		*o = GithubActionsJobSecrets{{Name: AllSecrets, Value: "inherit"}}
+		return nil
+	}
+
+	if node.Kind != yaml.MappingNode {
+		return nil
+	}
+
+	for i := 0; i < len(node.Content); i += 2 {
+		name := node.Content[i].Value
+		value := node.Content[i+1].Value
+		*o = append(*o, GithubActionsJobSecret{Name: name, Value: value})
+	}
+
+	return nil
+}
+
+func (o *StringList) UnmarshalYAML(node *yaml.Node) error {
+	if node.Kind == yaml.ScalarNode {
+		*o = []string{node.Value}
+		return nil
+	}
+
+	if node.Kind != yaml.SequenceNode {
+		// Lenient: unexpected shapes leave an empty list rather than failing
+		// the entire workflow parse.
+		return nil
+	}
+
+	l := make([]string, len(node.Content))
+	err := node.Decode(&l)
+	if err != nil {
+		return nil
+	}
+
+	*o = l
+	return nil
+}
+
+func (o *GithubActionsEvents) UnmarshalYAML(node *yaml.Node) error {
+	switch node.Kind {
+	case yaml.ScalarNode:
+		// on: push
+		*o = GithubActionsEvents{{Name: node.Value}}
+	case yaml.SequenceNode:
+		// on: [push]
+		*o = make(GithubActionsEvents, 0, len(node.Content))
+		for _, item := range node.Content {
+			*o = append(*o, GithubActionsEvent{Name: item.Value})
+		}
+	case yaml.MappingNode:
+		// on: {push: ...}
+		*o = make(GithubActionsEvents, 0, len(node.Content)/2)
+		for i := 0; i < len(node.Content); i += 2 {
+			name := node.Content[i].Value
+			value := node.Content[i+1]
+			event := GithubActionsEvent{Name: name}
+
+			if name == "schedule" {
+				var crons []struct {
+					Cron string `json:"cron"`
+				}
+
+				err := value.Decode(&crons)
+				if err != nil {
+					// Skip a malformed schedule block, keep other events.
+					continue
+				}
+
+				for _, c := range crons {
+					if c.Cron == "" {
+						// Skip empty/invalid cron entries individually.
+						continue
+					}
+
+					event.Cron = append(event.Cron, c.Cron)
+				}
+			} else {
+				err := value.Decode(&event)
+				if err != nil {
+					// Skip the offending event, keep the rest.
+					continue
+				}
+			}
+
+			*o = append(*o, event)
+		}
+	}
+
+	return nil
+}
+
+func (o *GithubActionsOutputs) UnmarshalYAML(node *yaml.Node) error {
+	if node.Kind != yaml.MappingNode {
+		return nil
+	}
+
+	for i := 0; i < len(node.Content); i += 2 {
+		name := node.Content[i].Value
+		value := node.Content[i+1]
+		var output GithubActionsOutput
+
+		if value.Kind == yaml.ScalarNode {
+			output = GithubActionsOutput{Name: name, Value: value.Value}
+			*o = append(*o, output)
+		} else if value.Kind == yaml.MappingNode {
+			output = GithubActionsOutput{Name: name}
+			err := value.Decode(&output)
+			if err != nil {
+				// Skip the offending output, keep the rest.
+				continue
+			}
+			*o = append(*o, output)
+		}
+
+	}
+
+	return nil
+}
+
+func (o *GithubActionsInputs) UnmarshalYAML(node *yaml.Node) error {
+	if node.Kind != yaml.MappingNode {
+		return nil
+	}
+
+	for i := 0; i < len(node.Content); i += 2 {
+		name := node.Content[i].Value
+		value := node.Content[i+1]
+		input := GithubActionsInput{Name: name}
+		err := value.Decode(&input)
+
+		if err != nil {
+			// Skip the offending input, keep the rest.
+			continue
+		}
+
+		*o = append(*o, input)
+	}
+
+	return nil
+}
+
+func (o *GithubActionsEnvs) UnmarshalYAML(node *yaml.Node) error {
+	if node.Kind == yaml.ScalarNode {
+		if len(node.Value) > 0 && node.Value[0] == '$' {
+			*o = GithubActionsEnvs{{Value: node.Value}}
+			return nil
+		}
+	}
+
+	if node.Kind != yaml.MappingNode {
+		return nil
+	}
+
+	for i := 0; i < len(node.Content); i += 2 {
+		name := node.Content[i].Value
+		value := node.Content[i+1].Value
+		*o = append(*o, GithubActionsEnv{name, value})
+	}
+
+	return nil
+}
+
+func (o *GithubActionsSteps) UnmarshalYAML(node *yaml.Node) error {
+	// Be lenient: a single malformed step should only drop that step, not the
+	// whole job (and therefore not the whole workflow file).
+	if node.Kind != yaml.SequenceNode {
+		return nil
+	}
+
+	for _, item := range node.Content {
+		// flatten parallel steps
+		if p := mappingValue(item, "parallel"); p != nil {
+			var nested GithubActionsSteps
+			_ = p.Decode(&nested) // recurses; handles nested parallel
+			for k := range nested {
+				nested[k].Parallel = true
+			}
+			*o = append(*o, nested...)
+			continue
+		}
+
+		var step GithubActionsStep
+		if err := item.Decode(&step); err != nil {
+			continue
+		}
+		*o = append(*o, step)
+	}
+
+	return nil
+}
+
+// mappingValue returns the value node for key in a mapping node, or nil.
+func mappingValue(node *yaml.Node, key string) *yaml.Node {
+	if node.Kind != yaml.MappingNode {
+		return nil
+	}
+	for i := 0; i+1 < len(node.Content); i += 2 {
+		if node.Content[i].Value == key {
+			return node.Content[i+1]
+		}
+	}
+	return nil
+}
+
+func (o *GithubActionsStep) UnmarshalYAML(node *yaml.Node) error {
+	type Alias GithubActionsStep
+	t := Alias{
+		Line:  node.Line,
+		Lines: map[string]int{"start": node.Line},
+	}
+	err := node.Decode(&t)
+	if err != nil {
+		return err
+	}
+
+	*o = GithubActionsStep(t)
+
+	for i := 0; i < len(node.Content); i += 2 {
+		key := node.Content[i].Value
+		value := node.Content[i+1]
+
+		switch key {
+		case "uses", "run", "if":
+			o.Lines[key] = value.Line
+		case "with":
+			if value.Kind != yaml.MappingNode {
+				continue
+			}
+
+			for j := 0; j < len(value.Content); j += 2 {
+				name := value.Content[j].Value
+				arg := value.Content[j+1]
+
+				switch name {
+				case "ref":
+					o.Lines["with_ref"] = arg.Line
+					o.WithRef = arg.Value
+				case "script":
+					o.Lines["with_script"] = arg.Line
+					o.WithScript = arg.Value
+				}
+			}
+		}
+	}
+
+	o.Action, _, _ = strings.Cut(o.Uses, "@")
+
+	return nil
+}
+
+func (o *GithubActionsPermissions) UnmarshalYAML(node *yaml.Node) error {
+	if node.Kind == yaml.ScalarNode {
+		var permission string
+		switch node.Value {
+		case "write-all":
+			permission = PermissionWrite
+		case "read-all":
+			permission = PermissionRead
+		default:
+			// Unknown scalar (e.g. a typo): leave permissions empty rather
+			// than failing the whole workflow parse.
+			return nil
+		}
+
+		*o = make(GithubActionsPermissions, 0, len(AllScopes))
+		for _, scope := range AllScopes {
+			*o = append(*o, GithubActionsPermission{scope, permission})
+		}
+		return nil
+	}
+
+	if node.Kind != yaml.MappingNode {
+		return nil
+	}
+
+	*o = make(GithubActionsPermissions, 0, len(node.Content)/2)
+	for i := 0; i < len(node.Content); i += 2 {
+		scope := node.Content[i].Value
+		permission := node.Content[i+1].Value
+
+		*o = append(*o, GithubActionsPermission{scope, permission})
+	}
+
+	return nil
+}
+
+func (o *GithubActionsJobRunsOn) UnmarshalYAML(node *yaml.Node) error {
+	if node.Kind == yaml.SequenceNode || node.Kind == yaml.ScalarNode {
+		var runsOn StringList
+		err := node.Decode(&runsOn)
+		if err != nil {
+			return nil
+		}
+		*o = GithubActionsJobRunsOn(runsOn)
+	}
+
+	if node.Kind == yaml.MappingNode {
+		type RunsOn struct {
+			Group  StringList `json:"group"`
+			Labels StringList `json:"labels"`
+		}
+		var runsOn RunsOn
+		err := node.Decode(&runsOn)
+		if err != nil {
+			return nil
+		}
+		for _, group := range runsOn.Group {
+			if group == "" {
+				// Skip empty entries individually instead of failing.
+				continue
+			}
+			*o = append(*o, fmt.Sprintf("group:%s", group))
+		}
+
+		for _, label := range runsOn.Labels {
+			if label == "" {
+				continue
+			}
+			*o = append(*o, fmt.Sprintf("label:%s", label))
+		}
+	}
+
+	return nil
+}
+
+func (o *GithubActionsJobContainer) UnmarshalYAML(node *yaml.Node) error {
+	if node.Kind == yaml.ScalarNode {
+		o.Image = node.Value
+		return nil
+	}
+
+	type container GithubActionsJobContainer
+	var c container
+	err := node.Decode(&c)
+	if err != nil {
+		// Lenient: leave the container empty rather than failing the parse.
+		return nil
+	}
+	*o = GithubActionsJobContainer(c)
+	return nil
+}
+
+func (o *GithubActionsJobEnvironments) UnmarshalYAML(node *yaml.Node) error {
+	if node.Kind == yaml.ScalarNode {
+		*o = GithubActionsJobEnvironments{{Name: node.Value}}
+		return nil
+	}
+
+	if node.Kind != yaml.MappingNode {
+		return nil
+	}
+
+	var env GithubActionsJobEnvironment
+	err := node.Decode(&env)
+	if err != nil {
+		return nil
+	}
+
+	*o = GithubActionsJobEnvironments{env}
+	return nil
+}
+
+type GithubActionsStrategy struct {
+	Matrix map[string]StringList `json:"matrix,omitempty" yaml:"matrix"`
+}
+
+// UnmarshalYAML parses the `strategy` block and extracts `matrix` dimensions.
+// It is intentionally lenient: unsupported constructs (expressions, include/exclude,
+// scalar dimensions, nested sequences) are silently skipped so that the rest of
+// the workflow still parses successfully.
+func (o *GithubActionsStrategy) UnmarshalYAML(node *yaml.Node) error {
+	if node.Kind != yaml.MappingNode {
+		return nil
+	}
+	for i := 0; i < len(node.Content); i += 2 {
+		key := node.Content[i].Value
+		value := node.Content[i+1]
+		if key != "matrix" {
+			continue
+		}
+		// matrix may be an expression like ${{ fromJSON(...) }}
+		if value.Kind != yaml.MappingNode {
+			continue
+		}
+		m := make(map[string]StringList, len(value.Content)/2)
+		for j := 0; j < len(value.Content); j += 2 {
+			dim := value.Content[j].Value
+			listNode := value.Content[j+1]
+			// skip include/exclude (special GHA keys) and non-sequence dimensions
+			if dim == "include" || dim == "exclude" {
+				continue
+			}
+			if listNode.Kind != yaml.SequenceNode {
+				continue
+			}
+			var items StringList
+			for _, item := range listNode.Content {
+				switch item.Kind {
+				case yaml.ScalarNode:
+					items = append(items, item.Value)
+				case yaml.MappingNode:
+					var obj map[string]interface{}
+					if err := item.Decode(&obj); err != nil {
+						continue
+					}
+					b, err := json.Marshal(obj)
+					if err != nil {
+						continue
+					}
+					items = append(items, string(b))
+				default:
+					continue
+				}
+			}
+			m[dim] = items
+		}
+		o.Matrix = m
+	}
+	return nil
+}

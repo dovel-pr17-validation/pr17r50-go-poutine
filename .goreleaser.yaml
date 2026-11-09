@@ -1,0 +1,77 @@
+version: 2
+project_name: poutine
+
+before:
+  hooks:
+    - go mod verify
+
+builds:
+  - env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+      - arm
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w -X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{.Date}} -X main.builtBy=goreleaser
+    goarm:
+      - '7'
+
+kos:
+  - repositories:
+      - ghcr.io/boostsecurityio/poutine
+    base_image: 'cgr.dev/chainguard/git:latest@sha256:62087eb4f17f6d09e27f4eace690f264e091bbbf0f99c8882dc5b8eae4013bab'
+    tags:
+      - '{{.Version}}'
+      - latest
+    bare: true
+    preserve_import_paths: false
+    platforms:
+      - linux/amd64
+      - linux/arm64
+
+docker_signs:
+  - artifacts: manifests
+    args:
+      - "sign"
+      - "${artifact}"
+      - "--yes" # skip user interaction
+
+signs:
+  - cmd: cosign
+    signature: "${artifact}.sigstore.json"
+    args:
+      - "sign-blob"
+      - "--bundle=${signature}"
+      - "${artifact}"
+      - "--yes" # skip user interaction
+    artifacts: checksum
+    output: true
+
+archives:
+  - formats: [ 'tar.gz' ]
+    # this name template makes the OS and Arch compatible with the results of `uname`.
+    name_template: >-
+      {{ .ProjectName }}_
+      {{- title .Os }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else if eq .Arch "386" }}i386
+      {{- else }}{{ .Arch }}{{ end }}
+      {{- if .Arm }}v{{ .Arm }}{{ end }}
+    # use zip for windows archives
+    format_overrides:
+      - goos: windows
+        formats: ['zip']
+
+changelog:
+  use: github-native
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
